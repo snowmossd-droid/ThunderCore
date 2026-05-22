@@ -4,17 +4,15 @@ import com.sun.jna.Native;
 import com.sun.jna.Library;
 
 public interface DiscordRPC extends Library {
-    DiscordRPC INSTANCE;
-
-    static {
-        DiscordRPC instance = null;
+    DiscordRPC INSTANCE = create();
+    
+    static DiscordRPC create() {
         try {
-            instance = (DiscordRPC) Native.load("discord-rpc", DiscordRPC.class);
+            return (DiscordRPC) Native.load("discord-rpc", DiscordRPC.class);
         } catch (Throwable e) {
             System.err.println("[DiscordRPC] Failed to load: " + e.getMessage());
-            instance = null;
+            return null;
         }
-        INSTANCE = instance;
     }
 
     void Discord_UpdateHandlers(DiscordEventHandlers var1);
@@ -27,4 +25,4 @@ public interface DiscordRPC extends Library {
     void Discord_RunCallbacks();
     void Discord_Initialize(String var1, DiscordEventHandlers var2, boolean var3, String var4);
     void Discord_ClearPresence();
-                            }
+}
