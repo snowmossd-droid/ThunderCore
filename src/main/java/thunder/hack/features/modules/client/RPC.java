@@ -168,4 +168,4 @@ public final class RPC extends Module {
     public enum Mode {Custom, MegaCute, Recode}
 
     public enum sMode {Custom, Stats, Version}
-    }
+                }
