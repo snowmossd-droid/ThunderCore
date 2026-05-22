@@ -1,4 +1,4 @@
-name: Giải nén ThunderHack
+name: Giải nén toàn bộ ThunderHack
 
 on:
   workflow_dispatch:
@@ -7,28 +7,38 @@ on:
       - 'ThunderHack-Recode-latest.zip'
 
 jobs:
-  unzip:
+  unzip-full:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Lấy code
         uses: actions/checkout@v4
 
-      - name: Giải nén file zip
+      - name: Giải nén toàn bộ file zip
         run: |
-          if [ -f "ThunderHack-Recode-latest.zip" ]; then
-            echo "Đang giải nén..."
-            unzip -o "ThunderHack-Recode-latest.zip"
-            echo "Giải nén thành công!"
+          ZIP_FILE="ThunderHack-Recode-latest.zip"
+          
+          if [ -f "$ZIP_FILE" ]; then
+            echo "📦 Đang giải nén toàn bộ: $ZIP_FILE"
+            
+            # Giải nén tất cả, ghi đè nếu có
+            unzip -o "$ZIP_FILE"
+            
+            echo "✅ Giải nén hoàn tất!"
+            echo ""
+            echo "📁 Các thư mục/file đã được giải nén:"
+            ls -la
           else
-            echo "Khong tim thay file zip"
+            echo "❌ Không tìm thấy file $ZIP_FILE"
             exit 1
           fi
 
-      - name: Commit va push
+      - name: Commit và push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add .
-          git diff --quiet && git diff --staged --quiet || git commit -m "Auto unzip ThunderHack-Recode"
+          git diff --quiet && git diff --staged --quiet || git commit -m "🤖 Giải nén toàn bộ ThunderHack (full)"
           git push
