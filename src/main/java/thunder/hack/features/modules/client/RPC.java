@@ -70,7 +70,11 @@ public final class RPC extends Module {
         if (thread != null && !thread.isInterrupted()) {
             thread.interrupt();
         }
-        rpc.Discord_Shutdown();
+        if (rpc != null) {
+            try {
+                rpc.Discord_Shutdown();
+            } catch (Throwable ignored) {}
+        }
     }
 
     @Override
@@ -80,53 +84,62 @@ public final class RPC extends Module {
 
     public void startRpc() {
         if (isDisabled()) return;
+        if (rpc == null) return;
         if (!started) {
             started = true;
-            DiscordEventHandlers handlers = new DiscordEventHandlers();
-            rpc.Discord_Initialize("1093053626198523935", handlers, true, "");
-            presence.startTimestamp = (System.currentTimeMillis() / 1000L);
-            presence.largeImageText = "v" + ThunderHack.VERSION + " [" + ThunderHack.GITHUB_HASH + "]";
-            rpc.Discord_UpdatePresence(presence);
+            try {
+                DiscordEventHandlers handlers = new DiscordEventHandlers();
+                rpc.Discord_Initialize("1093053626198523935", handlers, true, "");
+                presence.startTimestamp = (System.currentTimeMillis() / 1000L);
+                presence.largeImageText = "v" + ThunderHack.VERSION + " [" + ThunderHack.GITHUB_HASH + "]";
+                rpc.Discord_UpdatePresence(presence);
+            } catch (Throwable ignored) {
+                return;
+            }
 
             thread = new Thread(() -> {
                 while (!Thread.currentThread().isInterrupted()) {
-                    rpc.Discord_RunCallbacks();
-                    presence.details = getDetails();
-
-                    switch (smode.getValue()) {
-                        case Stats ->
-                                presence.state = "Hacks: " + Managers.MODULE.getEnabledModules().size() + " / " + Managers.MODULE.modules.size();
-                        case Custom -> presence.state = state.getValue();
-                        case Version -> presence.state = "v" + ThunderHack.VERSION +" for mc 1.21";
-                    }
-
-                    if (nickname.getValue()) {
-                        presence.smallImageText = "logged as - " + mc.getSession().getUsername();
-                        presence.smallImageKey = "https://minotar.net/helm/" + mc.getSession().getUsername() + "/100.png";
-                    } else {
-                        presence.smallImageText = "";
-                        presence.smallImageKey = "";
-                    }
-
-                    presence.button_label_1 = "Download";
-                    presence.button_url_1 = "https://github.com/Pan4ur/ThunderHack-Recode/";
-
-                    switch (mode.getValue()) {
-                        case Recode -> presence.largeImageKey = "https://i.imgur.com/yY0z2Uq.gif";
-                        case MegaCute ->
-                                presence.largeImageKey = "https://media1.tenor.com/images/6bcbfcc0be97d029613b54f97845bc59/tenor.gif?itemid=26823781";
-                        case Custom -> {
-                            readFile();
-                            presence.largeImageKey = String1.split("SEPARATOR")[0];
-                            if (!Objects.equals(String1.split("SEPARATOR")[1], "none")) {
-                                presence.smallImageKey = String1.split("SEPARATOR")[1];
-                            }
-                        }
-                    }
-                    rpc.Discord_UpdatePresence(presence);
                     try {
+                        if (rpc != null) {
+                            rpc.Discord_RunCallbacks();
+                            presence.details = getDetails();
+
+                            switch (smode.getValue()) {
+                                case Stats ->
+                                        presence.state = "Hacks: " + Managers.MODULE.getEnabledModules().size() + " / " + Managers.MODULE.modules.size();
+                                case Custom -> presence.state = state.getValue();
+                                case Version -> presence.state = "v" + ThunderHack.VERSION +" for mc 1.21";
+                            }
+
+                            if (nickname.getValue()) {
+                                presence.smallImageText = "logged as - " + mc.getSession().getUsername();
+                                presence.smallImageKey = "https://minotar.net/helm/" + mc.getSession().getUsername() + "/100.png";
+                            } else {
+                                presence.smallImageText = "";
+                                presence.smallImageKey = "";
+                            }
+
+                            presence.button_label_1 = "Download";
+                            presence.button_url_1 = "https://github.com/Pan4ur/ThunderHack-Recode/";
+
+                            switch (mode.getValue()) {
+                                case Recode -> presence.largeImageKey = "https://i.imgur.com/yY0z2Uq.gif";
+                                case MegaCute ->
+                                        presence.largeImageKey = "https://media1.tenor.com/images/6bcbfcc0be97d029613b54f97845bc59/tenor.gif?itemid=26823781";
+                                case Custom -> {
+                                    readFile();
+                                    presence.largeImageKey = String1.split("SEPARATOR")[0];
+                                    if (!Objects.equals(String1.split("SEPARATOR")[1], "none")) {
+                                        presence.smallImageKey = String1.split("SEPARATOR")[1];
+                                    }
+                                }
+                            }
+                            rpc.Discord_UpdatePresence(presence);
+                        }
                         Thread.sleep(2000L);
                     } catch (InterruptedException ignored) {
+                        break;
+                    } catch (Throwable ignored) {
                     }
                 }
             }, "TH-RPC-Handler");
@@ -155,4 +168,4 @@ public final class RPC extends Module {
     public enum Mode {Custom, MegaCute, Recode}
 
     public enum sMode {Custom, Stats, Version}
-}
+    }
