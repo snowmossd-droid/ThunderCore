@@ -1,7 +1,7 @@
 name: Giải nén ThunderHack
 
 on:
-  workflow_dispatch:  👈 DÒNG NÀY LÀ QUAN TRỌNG NHẤT
+  workflow_dispatch:
   push:
     paths:
       - 'ThunderHack-Recode-latest.zip'
@@ -17,18 +17,18 @@ jobs:
       - name: Giải nén file zip
         run: |
           if [ -f "ThunderHack-Recode-latest.zip" ]; then
-            echo "📦 Đang giải nén..."
+            echo "Đang giải nén..."
             unzip -o "ThunderHack-Recode-latest.zip"
-            echo "✅ Giải nén thành công!"
+            echo "Giải nén thành công!"
           else
-            echo "❌ Không tìm thấy file zip"
+            echo "Khong tim thay file zip"
             exit 1
           fi
 
-      - name: Commit và push
+      - name: Commit va push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add .
-          git diff --quiet && git diff --staged --quiet || git commit -m "🤖 Auto unzip ThunderHack-Recode"
+          git diff --quiet && git diff --staged --quiet || git commit -m "Auto unzip ThunderHack-Recode"
           git push
