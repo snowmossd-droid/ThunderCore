@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      workflows: write
 
     steps:
       - name: Lấy code
@@ -22,13 +23,8 @@ jobs:
           
           if [ -f "$ZIP_FILE" ]; then
             echo "📦 Đang giải nén toàn bộ: $ZIP_FILE"
-            
-            # Giải nén tất cả, ghi đè nếu có
             unzip -o "$ZIP_FILE"
-            
             echo "✅ Giải nén hoàn tất!"
-            echo ""
-            echo "📁 Các thư mục/file đã được giải nén:"
             ls -la
           else
             echo "❌ Không tìm thấy file $ZIP_FILE"
