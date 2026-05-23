@@ -7,7 +7,6 @@ import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.ChargedProjectilesComponent;
 import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.enchantment.Enchantments;
 import net.minecraft.entity.Entity;
@@ -59,24 +58,26 @@ public class AutoCart extends Module {
    private static final int HOTBAR_Y_OFFSET = 22;
    private static final int HOTBAR_LEFT_OFFSET = 91;
    private static final int TICK_LENGTH_MS = 50;
+
    private final Setting<AutoCart.Mode> mode = new Setting<>("Mode", AutoCart.Mode.Bow);
-   private final Setting<Float> maxDistance = new Setting<>("Max Distance", 4.5F, 2.0F, 6.0F, v -> this.mode.is(AutoCart.Mode.Bow));
-   private final Setting<Integer> startDelay = new Setting<>("Start Delay", 25, 0, 60, v -> this.mode.is(AutoCart.Mode.Bow));
-   private final Setting<Bind> activeBind = new Setting<>("Active Bind", new Bind(-1, false, false), v -> this.mode.is(AutoCart.Mode.CrossBow));
-   private final Setting<Integer> delay = new Setting<>("Delay", 25, 0, 100, v -> this.mode.is(AutoCart.Mode.Bow) || this.mode.is(AutoCart.Mode.CrossBow));
-   private final Setting<Integer> totemCartDelay = new Setting<>("Totem Cart Delay", 0, 0, 20, v -> this.isCartAuraEnabled());
-   private final Setting<Integer> refillSlot = new Setting<>("Refill Slot", 9, 1, 9, v -> this.isRefillSlotVisible());
-   private final Setting<Boolean> swapBack = new Setting<>("Swap Back", true);
-   private final Setting<Boolean> changeLook = new Setting<>("Change Look", false);
-   private final Setting<Boolean> cartAura = new Setting<>("Cart Aura", false, v -> this.mode.is(AutoCart.Mode.CrossBow));
-   private final Setting<AutoCart.ReFillMode> reFill = new Setting<>("ReFill", AutoCart.ReFillMode.None);
-   private final Setting<SettingGroup> cartAuraGroup = new Setting<>(
-      "Pop Cart", new SettingGroup(false, 0), v -> this.mode.is(AutoCart.Mode.CrossBow) && this.cartAura.getValue()
+   private final Setting<Float> maxDistance = new Setting<>("MaxRange", 4.5F, 2.0F, 6.0F, v -> this.mode.is(AutoCart.Mode.Bow));
+   private final Setting<Integer> startDelay = new Setting<>("BowDelay", 25, 0, 60, v -> this.mode.is(AutoCart.Mode.Bow));
+   private final Setting<Bind> activeBind = new Setting<>("Keybind", new Bind(-1, false, false), v -> this.mode.is(AutoCart.Mode.CrossBow));
+   private final Setting<Integer> delay = new Setting<>("FireDelay", 25, 0, 100, v -> this.mode.is(AutoCart.Mode.Bow) || this.mode.is(AutoCart.Mode.CrossBow));
+   private final Setting<Integer> cartAuraDelay = new Setting<>("AuraDelay", 0, 0, 20, v -> this.isCartAuraEnabled());
+   private final Setting<Integer> refillSlot = new Setting<>("RefillSlot", 9, 1, 9, v -> this.isRefillSlotVisible());
+   private final Setting<Boolean> swapBack = new Setting<>("ReturnSlot", true);
+   private final Setting<Boolean> changeLook = new Setting<>("RealRotate", false);
+   private final Setting<Boolean> cartAura = new Setting<>("CartAura", false, v -> this.mode.is(AutoCart.Mode.CrossBow));
+   private final Setting<AutoCart.ReFillMode> reFill = new Setting<>("AutoRefill", AutoCart.ReFillMode.None);
+   private final Setting<SettingGroup> cartAuraTargets = new Setting<>(
+      "AuraTargets", new SettingGroup(false, 0), v -> this.mode.is(AutoCart.Mode.CrossBow) && this.cartAura.getValue()
    );
-   private final Setting<Boolean> popCartEnabled = new Setting<>("Pop Cart Enabled", true, v -> this.mode.is(AutoCart.Mode.CrossBow) && this.cartAura.getValue())
-      .addToGroup(this.cartAuraGroup);
-   private final Setting<Float> popCartRange = new Setting<>("Pop Cart Range", 6.0F, 1.0F, 10.0F, v -> this.isCartAuraEnabled())
-      .addToGroup(this.cartAuraGroup);
+   private final Setting<Boolean> cartAuraTarget = new Setting<>("KillTarget", true, v -> this.mode.is(AutoCart.Mode.CrossBow) && this.cartAura.getValue())
+      .addToGroup(this.cartAuraTargets);
+   private final Setting<Boolean> cartOtherPlayer = new Setting<>("OtherPlayers", false, v -> this.mode.is(AutoCart.Mode.CrossBow) && this.cartAura.getValue())
+      .addToGroup(this.cartAuraTargets);
+
    private volatile float[] silentRotation = null;
    private volatile boolean rotating = false;
    private boolean crossBowPressed = false;
@@ -194,7 +195,7 @@ public class AutoCart extends Module {
    private void handleRefill() {
       if (this.reFill.is(AutoCart.ReFillMode.None)) {
          this.clearRefillState();
-      } else if (!this.scheduledRefillSwap && mc.currentScreen == null && mc.player.currentScreenHandler == mc.player.playerScreenHandler) {
+      } else if (!this.scheduledRefillSwap && mc.currentScreen == null && mc.player.age == mc.player.hurtTime) {
          int targetHotbarSlot = this.refillSlot.getValue() - 1;
          if (mc.player.getInventory().getStack(targetHotbarSlot).getItem() != Items.TNT_MINECART) {
             SearchInvResult cartResult = InventoryUtility.findItemInInventory(Items.TNT_MINECART);
@@ -211,8 +212,8 @@ public class AutoCart extends Module {
 
    private void handleLegitRefill(int inventorySlot, int hotbarSlot) {
       if (MovementUtility.isMoving()) {
-         InputBlocker.block("autocart_refill");
-         this.scheduleRefillSwap(inventorySlot, hotbarSlot, 5L);
+         InputBlocker.block(REFILL_BLOCK_OWNER);
+         this.scheduleRefillSwap(inventorySlot, hotbarSlot, LEGIT_REFILL_DELAY_MS);
       } else {
          this.performRefillSwap(inventorySlot, hotbarSlot);
       }
@@ -241,9 +242,9 @@ public class AutoCart extends Module {
 
    private void performRefillSwap(int inventorySlot, int hotbarSlot) {
       if (inventorySlot != -1 && hotbarSlot >= 0 && hotbarSlot <= 8) {
-         if (mc.currentScreen == null && mc.player.currentScreenHandler == mc.player.playerScreenHandler) {
+         if (mc.currentScreen == null && mc.player.age == mc.player.hurtTime) {
             if (mc.player.getInventory().getStack(hotbarSlot).getItem() != Items.TNT_MINECART) {
-               clickSlot(inventorySlot, hotbarSlot, SlotActionType.SWAP);
+               InteractionUtility.clickSlot(inventorySlot, hotbarSlot, SlotActionType.SWAP);
             }
          }
       }
@@ -254,32 +255,33 @@ public class AutoCart extends Module {
       this.scheduledRefillInventorySlot = -1;
       this.scheduledRefillHotbarSlot = -1;
       this.scheduledRefillAt = -1L;
-      InputBlocker.unblock("autocart_refill");
+      InputBlocker.unblock(REFILL_BLOCK_OWNER);
    }
 
    @EventHandler
    public void onTotemPop(@NotNull TotemPopEvent event) {
-      if (!fullNullCheck() && this.mode.is(AutoCart.Mode.CrossBow) && this.cartAura.getValue() && this.popCartEnabled.getValue()) {
-         if (!this.cartAuraExecuting) {
-            PlayerEntity popTarget = event.getEntity();
-            if (popTarget != mc.player) {
-               if (ModuleManager.friend.isFriend(popTarget)) return;
-               boolean isAuraTarget = ModuleManager.aura.target != null && popTarget == ModuleManager.aura.target;
-               boolean isOtherPlayer = mc.player.getPos().distanceTo(popTarget.getPos()) <= (double)(float)this.popCartRange.getValue();
-               if (isAuraTarget || isOtherPlayer) {
-                  BlockPos placePos = this.findCartAuraPosition(popTarget);
-                  if (placePos != null) {
-                     SearchInvResult crossbowResult = this.findLoadedCrossbowInHotBar();
-                     SearchInvResult cartResult = InventoryUtility.findItemInHotBar(Items.TNT_MINECART);
-                     if (crossbowResult.found() && cartResult.found()) {
-                        boolean hasFlame = this.hasFlameEnchant(mc.player.getInventory().getStack(crossbowResult.slot()));
-                        SearchInvResult flintResult = InventoryUtility.findItemInHotBar(Items.FLINT_AND_STEEL);
-                        if (hasFlame || flintResult.found()) {
-                           boolean railExists = this.isRailBlock(mc.world.getBlockState(placePos.up()).getBlock());
-                           SearchInvResult railResult = this.findRailInHotBar();
-                           if (railExists || railResult.found()) {
-                              this.executeCartAura(placePos, crossbowResult, railResult, cartResult, flintResult, hasFlame, railExists);
-                           }
+      if (!fullNullCheck() && this.mode.is(AutoCart.Mode.CrossBow) && this.cartAura.getValue() && !this.cartAuraExecuting) {
+         PlayerEntity popTarget = event.getEntity();
+         if (popTarget != mc.player) {
+            boolean isAuraTarget = this.cartAuraTarget.getValue()
+               && ModuleManager.aura.target != null
+               && popTarget == ModuleManager.aura.target;
+            boolean isOtherPlayer = this.cartOtherPlayer.getValue()
+               && !thunder.hack.core.Managers.FRIEND.isFriend(popTarget)
+               && mc.player.getPos().distanceTo(popTarget.getPos()) <= 6.0;
+            if (isAuraTarget || isOtherPlayer) {
+               BlockPos placePos = this.findCartAuraPosition(popTarget);
+               if (placePos != null) {
+                  SearchInvResult crossbowResult = this.findLoadedCrossbowInHotBar();
+                  SearchInvResult cartResult = InventoryUtility.findItemInHotBar(Items.TNT_MINECART);
+                  if (crossbowResult.found() && cartResult.found()) {
+                     boolean hasFlame = this.hasFlameEnchant(mc.player.getInventory().getStack(crossbowResult.slot()));
+                     SearchInvResult flintResult = InventoryUtility.findItemInHotBar(Items.FLINT_AND_STEEL);
+                     if (hasFlame || flintResult.found()) {
+                        boolean railExists = this.isRailBlock(mc.world.getBlockState(placePos.up()).getBlock());
+                        SearchInvResult railResult = this.findRailInHotBar();
+                        if (railExists || railResult.found()) {
+                           this.executeCartAura(placePos, crossbowResult, railResult, cartResult, flintResult, hasFlame, railExists);
                         }
                      }
                   }
@@ -301,8 +303,8 @@ public class AutoCart extends Module {
       this.cartAuraExecuting = true;
       int prevSlot = mc.player.getInventory().selectedSlot;
       int delayMs = this.delay.getValue();
-      int startDelayMs = this.totemCartDelay.getValue() * 50;
-      AsyncManager.run(() -> {
+      int startDelayMs = this.cartAuraDelay.getValue() * 50;
+      Managers.ASYNC.run(() -> {
          try {
             if (startDelayMs > 0) {
                AsyncManager.sleep(startDelayMs);
@@ -346,6 +348,8 @@ public class AutoCart extends Module {
                   this.selectHotbarLegit(crossbowResult.slot());
                   this.interactWithItem();
                   mc.player.swingHand(Hand.MAIN_HAND);
+                  ModuleManager.aura.externalPause = false;
+                  this.cartAuraExecuting = false;
                });
                AsyncManager.sleep(delayMs);
                mc.execute(() -> {
@@ -354,9 +358,12 @@ public class AutoCart extends Module {
                   }
                   this.endRotation();
                });
-               return;
+            } else {
+               ModuleManager.aura.externalPause = false;
+               this.cartAuraExecuting = false;
             }
-         } finally {
+         } catch (Exception e) {
+            e.printStackTrace();
             ModuleManager.aura.externalPause = false;
             this.cartAuraExecuting = false;
          }
@@ -377,7 +384,7 @@ public class AutoCart extends Module {
                   float maxDistSq = this.maxDistance.getValue() * this.maxDistance.getValue();
                   float safeDistSq = 4.0F;
                   if (!(distSq > maxDistSq) && !(distSq < safeDistSq)) {
-                     AsyncManager.run(() -> this.executeBowPlacement(targetPos), this.startDelay.getValue().intValue());
+                     Managers.ASYNC.run(() -> this.executeBowPlacement(targetPos), this.startDelay.getValue().intValue());
                   }
                }
             }
@@ -423,12 +430,6 @@ public class AutoCart extends Module {
       }
    }
 
-   @NotNull
-   private BlockPos getCartBasePos(@NotNull BlockPos targetPos) {
-      BlockState targetState = mc.world.getBlockState(targetPos);
-      return !this.isRailBlock(targetState.getBlock()) && !targetState.isAir() ? targetPos : targetPos.down();
-   }
-
    private void executeCrossBowMode() {
       if (!fullNullCheck()) {
          SearchInvResult crossbowResult = this.findLoadedCrossbowInHotBar();
@@ -458,7 +459,7 @@ public class AutoCart extends Module {
                      BlockPos finalFireBlockPos = fireBlockPos;
                      int prevSlot = mc.player.getInventory().selectedSlot;
                      int delayMs = this.delay.getValue();
-                     AsyncManager.run(() -> {
+                     Managers.ASYNC.run(() -> {
                         Vec3d placeVec = new Vec3d(basePos.getX() + 0.5, basePos.up().getY(), basePos.getZ() + 0.5);
                         mc.execute(() -> this.applyRotation(InteractionUtility.calculateAngle(placeVec)));
                         AsyncManager.sleep(delayMs);
@@ -601,10 +602,10 @@ public class AutoCart extends Module {
       mc.player.swingHand(Hand.MAIN_HAND);
    }
 
-   private boolean isKeyPressed(Setting<Bind> bind) {
-      if (bind == null || bind.getValue() == null) return false;
-      Bind b = bind.getValue();
-      return b.isKeyPressed(InputBlocker.isPressedWithId(b.getKey()));
+   @NotNull
+   private BlockPos getCartBasePos(@NotNull BlockPos targetPos) {
+      BlockState targetState = mc.world.getBlockState(targetPos);
+      return !this.isRailBlock(targetState.getBlock()) && !targetState.isAir() ? targetPos : targetPos.down();
    }
 
    @Nullable
@@ -613,7 +614,7 @@ public class AutoCart extends Module {
          double x = Render2DEngine.interpolate(mc.player.prevX, mc.player.getX(), Render3DEngine.getTickDelta());
          double y = Render2DEngine.interpolate(mc.player.prevY, mc.player.getY(), Render3DEngine.getTickDelta());
          double z = Render2DEngine.interpolate(mc.player.prevZ, mc.player.getZ(), Render3DEngine.getTickDelta());
-         y += mc.player.getStandingEyeHeight(mc.player.getPose()) - 0.1000000014901161;
+         y += mc.player.getEyeHeight(mc.player.getPose()) - 0.1000000014901161;
          float pitch = mc.player.getPitch();
          double motionX = -MathHelper.sin(yaw / 180.0F * (float) Math.PI) * MathHelper.cos(pitch / 180.0F * (float) Math.PI);
          double motionY = -MathHelper.sin(pitch / 180.0F * (float) Math.PI);
@@ -634,8 +635,8 @@ public class AutoCart extends Module {
          motionX *= pow;
          motionY *= pow;
          motionZ *= pow;
-         if (!mc.player.isSubmergedInWater()) {
-            motionY += mc.player.getFluidHeight(net.minecraft.registry.tag.FluidTags.WATER);
+         if (!mc.player.isOnGround()) {
+            motionY += mc.player.getFluidHeight(mc.world.getDimension().effects().equals("minecraft:the_nether") ? null : null);
          }
          for (int i = 0; i < 300; i++) {
             Vec3d lastPos = new Vec3d(x, y, z);
@@ -687,13 +688,15 @@ public class AutoCart extends Module {
                      if (aboveState.isAir() || this.isRailBlock(aboveState.getBlock())) {
                         Vec3d surfacePos = new Vec3d(bp.getX() + 0.5, bp.getY() + 1.0, bp.getZ() + 0.5);
                         if (!(PlayerUtility.squaredDistanceFromEyes(surfacePos) > 20.25F)) {
-                           BlockHitResult blockCheck = mc.world
-                              .raycast(new RaycastContext(playerEyes, surfacePos, ShapeType.COLLIDER, FluidHandling.NONE, mc.player));
+                           BlockHitResult blockCheck = mc.world.raycast(
+                              new RaycastContext(playerEyes, surfacePos, ShapeType.COLLIDER, FluidHandling.NONE, mc.player)
+                           );
                            if ((blockCheck == null || blockCheck.getType() != Type.BLOCK || blockCheck.getBlockPos().equals(bp))
                               && this.isPathClearOfPlayers(playerEyes, surfacePos, target)) {
                               Vec3d cartCenter = new Vec3d(bp.getX() + 0.5, bp.getY() + 1.5, bp.getZ() + 0.5);
-                              BlockHitResult damageCheck = mc.world
-                                 .raycast(new RaycastContext(cartCenter, targetFeet, ShapeType.COLLIDER, FluidHandling.NONE, mc.player));
+                              BlockHitResult damageCheck = mc.world.raycast(
+                                 new RaycastContext(cartCenter, targetFeet, ShapeType.COLLIDER, FluidHandling.NONE, mc.player)
+                              );
                               if (damageCheck == null || damageCheck.getType() != Type.BLOCK) {
                                  double distToTarget = cartCenter.squaredDistanceTo(targetFeet);
                                  if (distToTarget < bestDist) {
@@ -788,7 +791,7 @@ public class AutoCart extends Module {
    private boolean isCrossbowCharged(ItemStack stack) {
       return stack.getItem() == Items.CROSSBOW
          && stack.get(DataComponentTypes.CHARGED_PROJECTILES) != null
-         && !((ChargedProjectilesComponent)stack.get(DataComponentTypes.CHARGED_PROJECTILES)).isEmpty();
+         && !stack.get(DataComponentTypes.CHARGED_PROJECTILES).isEmpty();
    }
 
    private SearchInvResult findLoadedCrossbowInHotBar() {
@@ -801,7 +804,10 @@ public class AutoCart extends Module {
 
    private boolean hasFlameEnchant(ItemStack stack) {
       if (mc.world == null) return false;
-      RegistryEntry<net.minecraft.enchantment.Enchantment> flame = mc.world.getRegistryManager().get(Enchantments.FLAME.getRegistryRef()).getEntry(Enchantments.FLAME).get();
+      RegistryEntry<net.minecraft.enchantment.Enchantment> flame = mc.world.getRegistryManager()
+         .get(Enchantments.FLAME.getRegistryRef())
+         .getEntry(Enchantments.FLAME)
+         .get();
       return EnchantmentHelper.getLevel(flame, stack) > 0;
    }
 
