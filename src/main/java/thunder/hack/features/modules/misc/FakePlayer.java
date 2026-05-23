@@ -2,19 +2,19 @@ package thunder.hack.features.modules.misc;
 
 import com.mojang.authlib.GameProfile;
 import meteordevelopment.orbit.EventHandler;
-import net.minecraft.class_1268;
-import net.minecraft.class_1293;
-import net.minecraft.class_1294;
-import net.minecraft.class_1297;
-import net.minecraft.class_1799;
-import net.minecraft.class_1802;
-import net.minecraft.class_243;
-import net.minecraft.class_2663;
-import net.minecraft.class_2664;
-import net.minecraft.class_3417;
-import net.minecraft.class_3419;
-import net.minecraft.class_6024;
-import net.minecraft.class_745;
+import net.minecraft.client.network.OtherClientPlayerEntity;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityStatuses;
+import net.minecraft.entity.effect.StatusEffectInstance;
+import net.minecraft.entity.effect.StatusEffects;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.network.packet.s2c.play.EntityStatusS2CPacket;
+import net.minecraft.network.packet.s2c.play.ExplosionS2CPacket;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.util.Hand;
+import net.minecraft.util.math.Vec3d;
 import thunder.hack.ThunderHack;
 import thunder.hack.core.manager.client.ModuleManager;
 import thunder.hack.events.impl.EventAttack;
@@ -33,7 +33,7 @@ import java.util.UUID;
 public class FakePlayer extends Module {
     private final Setting<Boolean> copyInventory = new Setting<>("CopyInventory", false);
 
-    public static class_745 fakePlayer;
+    public static OtherClientPlayerEntity fakePlayer;
 
     public FakePlayer() {
         super("FakePlayer", Category.MISC);
@@ -50,33 +50,33 @@ public class FakePlayer extends Module {
 
     @Override
     public void onEnable() {
-        fakePlayer = new class_745(mc.field_1687, new GameProfile(UUID.fromString("66123666-6666-6666-6666-666666666600"), name.getValue()));
-        fakePlayer.method_5719(mc.field_1724);
+        fakePlayer = new OtherClientPlayerEntity(mc.world, new GameProfile(UUID.fromString("66123666-6666-6666-6666-666666666600"), name.getValue()));
+        fakePlayer.copyPositionAndRotation(mc.player);
 
         if (copyInventory.getValue()) {
-            fakePlayer.method_6122(class_1268.field_5808, mc.field_1724.method_6047().method_7972());
-            fakePlayer.method_6122(class_1268.field_5810, mc.field_1724.method_6079().method_7972());
+            fakePlayer.setStackInHand(Hand.MAIN_HAND, mc.player.getMainHandStack().copy());
+            fakePlayer.setStackInHand(Hand.OFF_HAND, mc.player.getOffHandStack().copy());
 
-            fakePlayer.method_31548().method_5447(36, mc.field_1724.method_31548().method_5438(36).method_7972());
-            fakePlayer.method_31548().method_5447(37, mc.field_1724.method_31548().method_5438(37).method_7972());
-            fakePlayer.method_31548().method_5447(38, mc.field_1724.method_31548().method_5438(38).method_7972());
-            fakePlayer.method_31548().method_5447(39, mc.field_1724.method_31548().method_5438(39).method_7972());
+            fakePlayer.getInventory().setStack(36, mc.player.getInventory().getStack(36).copy());
+            fakePlayer.getInventory().setStack(37, mc.player.getInventory().getStack(37).copy());
+            fakePlayer.getInventory().setStack(38, mc.player.getInventory().getStack(38).copy());
+            fakePlayer.getInventory().setStack(39, mc.player.getInventory().getStack(39).copy());
         }
 
-        mc.field_1687.method_53875(fakePlayer);
-        fakePlayer.method_6092(new class_1293(class_1294.field_5924, 9999, 2));
-        fakePlayer.method_6092(new class_1293(class_1294.field_5898, 9999, 4));
-        fakePlayer.method_6092(new class_1293(class_1294.field_5907, 9999, 1));
+        mc.world.addEntity(fakePlayer);
+        fakePlayer.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 9999, 2));
+        fakePlayer.addStatusEffect(new StatusEffectInstance(StatusEffects.ABSORPTION, 9999, 4));
+        fakePlayer.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, 9999, 1));
     }
 
     @EventHandler
     public void onPacketReceive(PacketEvent.Receive e) {
-        if (e.getPacket() instanceof class_2664 explosion && fakePlayer != null && fakePlayer.field_6235 == 0) {
-            fakePlayer.method_48922(mc.field_1687.method_48963().method_48830());
-            fakePlayer.method_6033(fakePlayer.method_6032() + fakePlayer.method_6067() - ExplosionUtility.getAutoCrystalDamage(new class_243(explosion.method_11475(), explosion.method_11477(), explosion.method_11478()), fakePlayer, 0, false));
-            if (fakePlayer.method_29504()) {
-                if (fakePlayer.method_6095(mc.field_1687.method_48963().method_48830())) {
-                    fakePlayer.method_6033(10f);
+        if (e.getPacket() instanceof ExplosionS2CPacket explosion && fakePlayer != null && fakePlayer.hurtTime == 0) {
+            fakePlayer.onDamaged(mc.world.getDamageSources().generic());
+            fakePlayer.setHealth(fakePlayer.getHealth() + fakePlayer.getAbsorptionAmount() - ExplosionUtility.getAutoCrystalDamage(new Vec3d(explosion.getX(), explosion.getY(), explosion.getZ()), fakePlayer, 0, false));
+            if (fakePlayer.isDead()) {
+                if (fakePlayer.tryUseTotem(mc.world.getDamageSources().generic())) {
+                    fakePlayer.setHealth(10f);
                     ThunderHack.EVENT_BUS.post(new TotemPopEvent(fakePlayer, 1));
                 }
             }
@@ -86,7 +86,7 @@ public class FakePlayer extends Module {
     @EventHandler
     public void onSync(EventSync e) {
         if (record.getValue()) {
-            positions.add(new PlayerState(mc.field_1724.method_23317(), mc.field_1724.method_23318(), mc.field_1724.method_23321(), mc.field_1724.method_36454(), mc.field_1724.method_36455()));
+            positions.add(new PlayerState(mc.player.getX(), mc.player.getY(), mc.player.getZ(), mc.player.getYaw(), mc.player.getPitch()));
             return;
         }
         if (fakePlayer != null) {
@@ -98,18 +98,18 @@ public class FakePlayer extends Module {
                     return;
                 }
                 PlayerState p = positions.get(movementTick);
-                fakePlayer.method_36456(p.yaw);
-                fakePlayer.method_36457(p.pitch);
-                fakePlayer.method_5847(p.yaw);
+                fakePlayer.setYaw(p.yaw);
+                fakePlayer.setPitch(p.pitch);
+                fakePlayer.setHeadYaw(p.yaw);
 
-                fakePlayer.method_43391(p.x, p.y, p.z);
-                fakePlayer.method_5759(p.x, p.y, p.z, p.yaw, p.pitch, 3);
+                fakePlayer.updateTrackedPosition(p.x, p.y, p.z);
+                fakePlayer.updateTrackedPositionAndAngles(p.x, p.y, p.z, p.yaw, p.pitch, 3);
             } else movementTick = 0;
 
-            if (autoTotem.getValue() && fakePlayer.method_6079().method_7909() != class_1802.field_8288)
-                fakePlayer.method_6122(class_1268.field_5810, new class_1799(class_1802.field_8288));
+            if (autoTotem.getValue() && fakePlayer.getOffHandStack().getItem() != Items.TOTEM_OF_UNDYING)
+                fakePlayer.setStackInHand(Hand.OFF_HAND, new ItemStack(Items.TOTEM_OF_UNDYING));
 
-            if (fakePlayer.method_29504()) {
+            if (fakePlayer.isDead()) {
                 deathTime++;
                 if (deathTime > 10) disable();
             }
@@ -118,23 +118,23 @@ public class FakePlayer extends Module {
 
     @EventHandler
     public void onAttack(EventAttack e) {
-        if (fakePlayer != null && e.getEntity() == fakePlayer && fakePlayer.field_6235 == 0 && !e.isPre()) {
-            mc.field_1687.method_43128(mc.field_1724, fakePlayer.method_23317(), fakePlayer.method_23318(), fakePlayer.method_23321(), class_3417.field_15115, class_3419.field_15248, 1f, 1f);
+        if (fakePlayer != null && e.getEntity() == fakePlayer && fakePlayer.hurtTime == 0 && !e.isPre()) {
+            mc.world.playSound(mc.player, fakePlayer.getX(), fakePlayer.getY(), fakePlayer.getZ(), SoundEvents.ENTITY_PLAYER_HURT, SoundCategory.PLAYERS, 1f, 1f);
 
-            if (mc.field_1724.field_6017 > 0 || ModuleManager.criticals.isEnabled())
-                mc.field_1687.method_43128(mc.field_1724, fakePlayer.method_23317(), fakePlayer.method_23318(), fakePlayer.method_23321(), class_3417.field_15016, class_3419.field_15248, 1f, 1f);
+            if (mc.player.fallDistance > 0 || ModuleManager.criticals.isEnabled())
+                mc.world.playSound(mc.player, fakePlayer.getX(), fakePlayer.getY(), fakePlayer.getZ(), SoundEvents.ENTITY_PLAYER_ATTACK_CRIT, SoundCategory.PLAYERS, 1f, 1f);
 
-            fakePlayer.method_48922(mc.field_1687.method_48963().method_48830());
+            fakePlayer.onDamaged(mc.world.getDamageSources().generic());
 
             if (ModuleManager.aura.getAttackCooldown() >= 0.85)
-                fakePlayer.method_6033(fakePlayer.method_6032() + fakePlayer.method_6067() - InventoryUtility.getHitDamage(mc.field_1724.method_6047(), fakePlayer));
+                fakePlayer.setHealth(fakePlayer.getHealth() + fakePlayer.getAbsorptionAmount() - InventoryUtility.getHitDamage(mc.player.getMainHandStack(), fakePlayer));
             else
-                fakePlayer.method_6033(fakePlayer.method_6032() + fakePlayer.method_6067() - 1f);
+                fakePlayer.setHealth(fakePlayer.getHealth() + fakePlayer.getAbsorptionAmount() - 1f);
 
-            if (fakePlayer.method_29504()) {
-                if (fakePlayer.method_6095(mc.field_1687.method_48963().method_48830())) {
-                    fakePlayer.method_6033(10f);
-                    new class_2663(fakePlayer, class_6024.field_30003).method_11471(mc.field_1724.field_3944);
+            if (fakePlayer.isDead()) {
+                if (fakePlayer.tryUseTotem(mc.world.getDamageSources().generic())) {
+                    fakePlayer.setHealth(10f);
+                    new EntityStatusS2CPacket(fakePlayer, EntityStatuses.USE_TOTEM_OF_UNDYING).apply(mc.player.networkHandler);
                     ThunderHack.EVENT_BUS.post(new TotemPopEvent(fakePlayer, 1));
                 }
             }
@@ -144,9 +144,9 @@ public class FakePlayer extends Module {
     @Override
     public void onDisable() {
         if (fakePlayer == null) return;
-        fakePlayer.method_5768();
-        fakePlayer.method_31745(class_1297.class_5529.field_26998);
-        fakePlayer.method_36209();
+        fakePlayer.kill();
+        fakePlayer.setRemoved(Entity.RemovalReason.KILLED);
+        fakePlayer.onRemoved();
         fakePlayer = null;
         positions.clear();
         deathTime = 0;
@@ -154,4 +154,4 @@ public class FakePlayer extends Module {
 
     private record PlayerState(double x, double y, double z, float yaw, float pitch) {
     }
-    }
+                                                    }
