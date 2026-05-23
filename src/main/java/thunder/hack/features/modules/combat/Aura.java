@@ -610,7 +610,7 @@ public class Aura extends Module {
         }
     }
 
-    private void renderOrbitEsp(LivingEntity target) {
+    private void renderOrbitEsp(Entity target) {
         orbitAngle += orbitSpeed.getValue() * 0.03;
         double cx = target.getX();
         double cy = target.getY() + target.getBoundingBox().getLengthY() / 2.0;
