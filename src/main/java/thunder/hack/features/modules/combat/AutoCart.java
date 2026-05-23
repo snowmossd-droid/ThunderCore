@@ -115,9 +115,7 @@ public class AutoCart extends Module {
       this.rotating = false;
       this.crossBowPressed = false;
       if (this.cartAuraExecuting) {
-         if (ModuleManager.aura != null) {
-            ModuleManager.aura.externalPause = false;
-         }
+         ModuleManager.aura.externalPause = false;
       }
       this.cartAuraExecuting = false;
       this.clearRefillState();
@@ -245,7 +243,7 @@ public class AutoCart extends Module {
       if (inventorySlot != -1 && hotbarSlot >= 0 && hotbarSlot <= 8) {
          if (mc.currentScreen == null && mc.player.age == mc.player.hurtTime) {
             if (mc.player.getInventory().getStack(hotbarSlot).getItem() != Items.TNT_MINECART) {
-               InteractionUtility.clickSlot(inventorySlot, hotbarSlot, SlotActionType.SWAP);
+               InventoryUtility.swap(inventorySlot, hotbarSlot);
             }
          }
       }
@@ -305,15 +303,13 @@ public class AutoCart extends Module {
       int prevSlot = mc.player.getInventory().selectedSlot;
       int delayMs = this.delay.getValue();
       int startDelayMs = this.cartAuraDelay.getValue() * 50;
-      AsyncManager.runAsync(() -> {
+      new Thread(() -> {
          try {
             if (startDelayMs > 0) {
                Thread.sleep(startDelayMs);
             }
             if (!fullNullCheck() && !this.isDisabled() && this.mode.is(AutoCart.Mode.CrossBow) && this.cartAura.getValue()) {
-               if (ModuleManager.aura != null) {
-                  ModuleManager.aura.externalPause = true;
-               }
+               ModuleManager.aura.externalPause = true;
                Vec3d placeVec = new Vec3d(basePos.getX() + 0.5, basePos.up().getY(), basePos.getZ() + 0.5);
                mc.execute(() -> this.applyRotation(InteractionUtility.calculateAngle(placeVec)));
                Thread.sleep(delayMs);
@@ -364,12 +360,10 @@ public class AutoCart extends Module {
          } catch (InterruptedException e) {
             e.printStackTrace();
          } finally {
-            if (ModuleManager.aura != null) {
-               ModuleManager.aura.externalPause = false;
-            }
+            ModuleManager.aura.externalPause = false;
             this.cartAuraExecuting = false;
          }
-      });
+      }).start();
    }
 
    private void executeBowMode() {
@@ -386,7 +380,7 @@ public class AutoCart extends Module {
                   float maxDistSq = this.maxDistance.getValue() * this.maxDistance.getValue();
                   float safeDistSq = 4.0F;
                   if (!(distSq > maxDistSq) && !(distSq < safeDistSq)) {
-                     AsyncManager.runAsync(() -> this.executeBowPlacement(targetPos), this.startDelay.getValue().intValue());
+                     new Thread(() -> this.executeBowPlacement(targetPos)).start();
                   }
                }
             }
@@ -467,7 +461,7 @@ public class AutoCart extends Module {
                      BlockPos finalFireBlockPos = fireBlockPos;
                      int prevSlot = mc.player.getInventory().selectedSlot;
                      int delayMs = this.delay.getValue();
-                     AsyncManager.runAsync(() -> {
+                     new Thread(() -> {
                         try {
                            Vec3d placeVec = new Vec3d(basePos.getX() + 0.5, basePos.up().getY(), basePos.getZ() + 0.5);
                            mc.execute(() -> this.applyRotation(InteractionUtility.calculateAngle(placeVec)));
@@ -512,7 +506,7 @@ public class AutoCart extends Module {
                         } catch (InterruptedException e) {
                            e.printStackTrace();
                         }
-                     });
+                     }).start();
                   }
                }
             }
