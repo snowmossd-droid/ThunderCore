@@ -32,15 +32,15 @@ public class WaterMark extends HudElement {
     private final Setting<Boolean> ru = new Setting<>("RU", false);
 
     private final TextUtil textUtil = new TextUtil(
-            "ТандерХак",
-            "ГромХак",
-            "ГрозаКлиент",
-            "ТандерХуй",
-            "ТандерХряк",
-            "ТандерХрюк",
-            "ТиндерХак",
-            "ТундраХак",
-            "ГромВзлом"
+            "Aurora",
+            "Aurora",
+            "Aurora",
+            "Aurora",
+            "Aurora",
+            "Aurora",
+            "Aurora",
+            "Aurora",
+            "Aurora"
     );
 
     private enum Mode {
@@ -52,10 +52,9 @@ public class WaterMark extends HudElement {
         String username = ((ModuleManager.media.isEnabled() && Media.nickProtect.getValue()) || ModuleManager.nameProtect.isEnabled()) ? (ModuleManager.nameProtect.isEnabled() ? NameProtect.getCustomName() : "Protected") : mc.getSession().getUsername();
 
         if (mode.getValue() == Mode.Big) {
-            Render2DEngine.drawHudBase(context.getMatrices(), getPosX(), getPosY(), 106, 30, HudEditor.hudRound.getValue());
-            FontRenderers.thglitch.drawString(context.getMatrices(), "Aurora", getPosX() + 5.5, getPosY() + 5, -1);
-            FontRenderers.monsterrat.drawGradientString(context.getMatrices(), "recode", getPosX() + 35.5f, getPosY() + 21f, 1);
-            setBounds(getPosX(), getPosY(), 106, 30);
+            Render2DEngine.drawHudBase(context.getMatrices(), getPosX(), getPosY(), 80, 30, HudEditor.hudRound.getValue());
+            FontRenderers.thglitch.drawString(context.getMatrices(), "Aurora", getPosX() + 5.5, getPosY() + 12, -1);
+            setBounds(getPosX(), getPosY(), 80, 30);
         } else if (mode.getValue() == Mode.Small) {
             if (HudEditor.hudStyle.is(HudEditor.HudStyle.Blurry)) {
                 float offset1 = FontRenderers.sf_bold.getStringWidth(username) + 72;
@@ -69,7 +68,7 @@ public class WaterMark extends HudElement {
 
                 Render2DEngine.drawRect(context.getMatrices(), getPosX() + 13, getPosY() + 1.5f, 0.5f, 11, new Color(0x44FFFFFF, true));
 
-                FontRenderers.sf_bold.drawGradientString(context.getMatrices(), "Recode", getPosX() + 18, getPosY() + 5, 20);
+                FontRenderers.sf_bold.drawGradientString(context.getMatrices(), "Aurora", getPosX() + 18, getPosY() + 5, 20);
 
                 RenderSystem.blendFunc(GlStateManager.SrcFactor.SRC_ALPHA, GlStateManager.DstFactor.ONE);
                 RenderSystem.setShaderTexture(0, TextureStorage.miniLogo);
@@ -102,10 +101,10 @@ public class WaterMark extends HudElement {
                 setBounds(getPosX(), getPosY(), 100, 15f);
             } else {
                 String info = Formatting.DARK_GRAY + "| " + Formatting.RESET + username + Formatting.DARK_GRAY + " | " + Formatting.RESET + Managers.SERVER.getPing() + " ms" + Formatting.DARK_GRAY + " | " + Formatting.RESET + (mc.isInSingleplayer() ? "SinglePlayer" : mc.getNetworkHandler().getServerInfo().address);
-                float width = FontRenderers.sf_bold.getStringWidth("ThunderHack " + info) + 5;
+                float width = FontRenderers.sf_bold.getStringWidth("Aurora " + info) + 5;
                 Render2DEngine.drawHudBase(context.getMatrices(), getPosX(), getPosY(), width, 10, 3);
-                FontRenderers.sf_bold.drawGradientString(context.getMatrices(), ru.getValue() ? textUtil + " " : "ThunderHack ", getPosX() + 2, getPosY() + 2.5f, 10);
-                FontRenderers.sf_bold.drawString(context.getMatrices(), info, getPosX() + 2 + FontRenderers.sf_bold.getStringWidth("ThunderHack "), getPosY() + 2.5f, HudEditor.textColor.getValue().getColor());
+                FontRenderers.sf_bold.drawGradientString(context.getMatrices(), "Aurora ", getPosX() + 2, getPosY() + 2.5f, 10);
+                FontRenderers.sf_bold.drawString(context.getMatrices(), info, getPosX() + 2 + FontRenderers.sf_bold.getStringWidth("Aurora "), getPosY() + 2.5f, HudEditor.textColor.getValue().getColor());
                 setBounds(getPosX(), getPosY(), width, 10);
             }
 
@@ -121,24 +120,21 @@ public class WaterMark extends HudElement {
             context.getMatrices().pop();
             Render2DEngine.popWindow();
 
-            FontRenderers.thglitch.drawString(context.getMatrices(), "BALTIKA", getPosX() + 43, getPosY() + 41.5, -1);
+            FontRenderers.thglitch.drawString(context.getMatrices(), "Aurora", getPosX() + 43, getPosY() + 28, -1);
             setBounds(getPosX(), getPosY(), 100, 64);
         } else if (mode.is(Mode.Rifk)) {
             Date date = new Date(System.currentTimeMillis());
             SimpleDateFormat format = new SimpleDateFormat("HH:mm:ss");
 
-            // лень вставлять реал билд дату
-            // too lazy to insert the real build date
-
-            String info = Formatting.GREEN + String.format("th7 | build: 16/06/2024 | rate: %d | %s", Math.round(Managers.SERVER.getTPS()), format.format(date));
+            String info = Formatting.GREEN + String.format("Aurora | rate: %d | %s", Math.round(Managers.SERVER.getTPS()), format.format(date));
             float width = FontRenderers.profont.getStringWidth(info) + 5;
             Render2DEngine.drawRectWithOutline(context.getMatrices(), getPosX(), getPosY(), width, 8, Color.decode("#192A1A"), Color.decode("#833B7B"));
             Render2DEngine.drawGradientBlurredShadow1(context.getMatrices(), getPosX(), getPosY(), width, 8, 10, Color.decode("#161A1E"), Color.decode("#161A1E"), Color.decode("#382E37"), Color.decode("#382E37"));
             FontRenderers.profont.drawString(context.getMatrices(), info, getPosX() + 2.7, getPosY() + 2.953, HudEditor.textColor.getValue().getColor());
             setBounds(getPosX(), getPosY(), width, 8);
         } else {
-            FontRenderers.monsterrat.drawGradientString(context.getMatrices(), "ThunderHack v" + ThunderHack.VERSION, getPosX() + 5.5f, getPosY() + 5, 10);
-            setBounds(getPosX(), getPosY(), 100, 3);
+            FontRenderers.monsterrat.drawGradientString(context.getMatrices(), "Aurora", getPosX() + 5.5f, getPosY() + 5, 10);
+            setBounds(getPosX(), getPosY(), 60, 15);
         }
     }
 
@@ -146,4 +142,4 @@ public class WaterMark extends HudElement {
     public void onUpdate() {
         textUtil.tick();
     }
-}
+    }
