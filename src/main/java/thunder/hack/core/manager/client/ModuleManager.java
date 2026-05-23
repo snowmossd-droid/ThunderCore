@@ -184,6 +184,7 @@ public class ModuleManager implements IManager {
     public static AutoSoup autoSoup = new AutoSoup();
     public static AutoFish autoFish = new AutoFish();
     public static AutoBuff autoBuff = new AutoBuff();
+    public static AutoCart autoCart = new AutoCart();
     public static AutoAuth autoAuth = new AutoAuth();
     public static ArmorHud armorHud = new ArmorHud();
     public static AirPlace airPlace = new AirPlace();
