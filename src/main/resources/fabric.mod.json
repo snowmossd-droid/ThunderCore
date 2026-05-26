@@ -20,7 +20,7 @@
     }
   ],
   "license": "GNU General Public License v3.0",
-  "accessWidener": "thunderhack.accesswidener",
+  "accessWidener": "thunderaurora.accesswidener",
   "environment": "client",
   "entrypoints": {
     "main": [
