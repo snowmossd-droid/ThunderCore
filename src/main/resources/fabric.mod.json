@@ -33,7 +33,7 @@
     "issues": "https://github.com/Pan4ur/ThunderHack-Recode/issues"
   },
   "mixins": [
-    "thunderhack.mixins.json"
+    "thunderaurora.mixins.json"
   ],
   "depends": {
     "fabricloader": ">=0.15.11",
